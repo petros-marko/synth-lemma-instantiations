@@ -53,7 +53,7 @@ use queries::QueryResult;
 use rty::VariantIdx;
 use rustc_abi::FieldIdx;
 use rustc_data_structures::{
-    fx::FxIndexMap,
+    fx::{FxIndexMap, FxIndexSet},
     unord::{UnordMap, UnordSet},
 };
 use rustc_hir::OwnerId;
@@ -352,7 +352,8 @@ fn sort_of_thy_func(func: liquid_fixpoint::ThyFunc) -> Option<rty::PolyFuncSort>
 
 #[derive(Default)]
 pub struct Specs {
-    items: FxIndexMap<OwnerId, surface::Item>,
+    items: UnordMap<OwnerId, surface::Item>,
+    lemma_bank: FxIndexSet<LocalDefId>,
     trait_items: UnordMap<OwnerId, surface::TraitItemFn>,
     impl_items: UnordMap<OwnerId, surface::ImplItemFn>,
     pub flux_items_by_parent: FxIndexMap<OwnerId, Vec<surface::FluxItem>>,
@@ -393,15 +394,8 @@ impl Specs {
         self.dummy_extern.insert(def_id);
     }
 
-    pub fn lemma_bank(&self) -> Vec<&surface::Item> {
-        self.items
-            .values()
-            .filter(|item| {
-                item.attrs
-                    .iter()
-                    .any(|attr| matches!(attr, surface::Attr::Lemma))
-            })
-            .collect()
+    pub fn lemma_ids(&self) -> impl Iterator<Item = &LocalDefId> {
+        self.lemma_bank.iter()
     }
 
     pub fn get_item(&self, owner_id: OwnerId) -> Option<&surface::Item> {
@@ -409,6 +403,13 @@ impl Specs {
     }
 
     pub fn insert_item(&mut self, owner_id: OwnerId, item: surface::Item) -> Option<surface::Item> {
+        if item
+            .attrs
+            .iter()
+            .any(|attr| matches!(attr, surface::Attr::Lemma))
+        {
+            self.lemma_bank.insert(owner_id.def_id);
+        }
         if let Some(old) = self.items.insert(owner_id, item) {
             return Some(old);
         }
