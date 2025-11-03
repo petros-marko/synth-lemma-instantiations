@@ -47,6 +47,7 @@ pub enum Attr {
     TrustedImpl(Trusted),
     Ignore(Ignored),
     ProvenExternally,
+    Lemma,
     ShouldFail,
     InferOpts(PartialInferOpts),
 }
@@ -63,6 +64,10 @@ impl AttrMap<'_> {
         self.attrs
             .iter()
             .any(|attr| matches!(attr, Attr::ProvenExternally))
+    }
+
+    pub(crate) fn lemma(&self) -> bool {
+        self.attrs.iter().any(|attr| matches!(attr, Attr::Lemma))
     }
 
     pub(crate) fn ignored(&self) -> Option<Ignored> {

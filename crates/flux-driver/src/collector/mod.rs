@@ -550,6 +550,7 @@ impl<'a, 'tcx> SpecCollector<'a, 'tcx> {
                 })?
             }
             ("proven_externally", hir::AttrArgs::Empty) => FluxAttrKind::ProvenExternally,
+            ("lemma", hir::AttrArgs::Empty) => FluxAttrKind::Lemma,
             ("trusted_impl", hir::AttrArgs::Empty) => FluxAttrKind::TrustedImpl(Trusted::Yes),
             ("opaque", hir::AttrArgs::Empty) => FluxAttrKind::Opaque,
             ("reflect", hir::AttrArgs::Empty) => FluxAttrKind::Reflect,
@@ -645,6 +646,7 @@ enum FluxAttrKind {
     Trusted(Trusted),
     TrustedImpl(Trusted),
     ProvenExternally,
+    Lemma,
     Opaque,
     Reflect,
     FnSig(surface::FnSig),
@@ -794,6 +796,7 @@ impl FluxAttrs {
                 FluxAttrKind::Trusted(trusted) => surface::Attr::Trusted(trusted),
                 FluxAttrKind::TrustedImpl(trusted) => surface::Attr::TrustedImpl(trusted),
                 FluxAttrKind::ProvenExternally => surface::Attr::ProvenExternally,
+                FluxAttrKind::Lemma => surface::Attr::Lemma,
                 FluxAttrKind::QualNames(names) => surface::Attr::Qualifiers(names),
                 FluxAttrKind::RevealNames(names) => surface::Attr::Reveal(names),
                 FluxAttrKind::InferOpts(opts) => surface::Attr::InferOpts(opts),
@@ -827,6 +830,7 @@ impl FluxAttrKind {
             FluxAttrKind::Trusted(_) => attr_name!(Trusted),
             FluxAttrKind::TrustedImpl(_) => attr_name!(TrustedImpl),
             FluxAttrKind::ProvenExternally => attr_name!(ProvenExternally),
+            FluxAttrKind::Lemma => attr_name!(Lemma),
             FluxAttrKind::Opaque => attr_name!(Opaque),
             FluxAttrKind::Reflect => attr_name!(Reflect),
             FluxAttrKind::FnSig(_) => attr_name!(FnSig),

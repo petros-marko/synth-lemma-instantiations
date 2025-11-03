@@ -20,6 +20,7 @@ pub const FLUX_ATTRS: &[&str] = &[
     "trusted",
     "trusted_impl",
     "proven_externally",
+    "lemma",
     "variant",
     "should_fail",
     "opts",
