@@ -31,7 +31,7 @@ use crate::{
     evars::{EVarState, EVarStore},
     fixpoint_encoding::{Answer, FixQueryCache, FixpointCtxt, KVarEncoding, KVarGen},
     projections::NormalizeExt as _,
-    refine_tree::{self, Cursor, Marker, Node, RefineTree, Scope},
+    refine_tree::{Cursor, Marker, RefineTree, Scope},
 };
 
 pub type InferResult<T = ()> = std::result::Result<T, InferErr>;
@@ -214,36 +214,6 @@ impl<'genv, 'tcx> InferCtxtRoot<'genv, 'tcx> {
         fcx.generate_and_check_lean_lemmas(cstr)
     }
 
-    fn requires_imp_ensures(fn_sig: EarlyBinder<rty::FnSig>) -> rty::EarlyBinder<rty::Expr> {
-        fn_sig.map(|fn_sig| {
-            let requires = Vec::from(fn_sig.requires());
-            let requires_conj = rty::Expr::and_from_iter(requires);
-            let output = fn_sig.output().skip_binder();
-            let ensures = output.ensures.iter().filter_map(|ensure| {
-                match ensure {
-                    rty::Ensures::Type(..) => None,
-                    rty::Ensures::Pred(expr) => Some(expr.clone()),
-                }
-            });
-            let ensures_conj = rty::Expr::and_from_iter(ensures);
-            rty::Expr::binary_op(rty::BinOp::Imp, requires_conj, ensures_conj)
-        })
-    }
-
-    pub fn try_solve_with_lemma(
-        genv: GlobalEnv,
-        cache: &mut FixQueryCache,
-        def_id: MaybeExternId,
-        kvars: KVarGen,
-        mut refine_tree: RefineTree,
-        lemma_id: DefId,
-    ) -> QueryResult<Option<Answer<Tag>>> {
-        let refinement_generics = genv.refinement_generics_of(lemma_id)?;
-        let fn_sig = genv.fn_sig(lemma_id)?.map(|binder| binder.skip_binder());
-        let assumption = Self::requires_imp_ensures(fn_sig);
-        Ok(None)
-    }
-
     pub fn execute_fixpoint_query(
         self,
         cache: &mut FixQueryCache,
@@ -278,25 +248,7 @@ impl<'genv, 'tcx> InferCtxtRoot<'genv, 'tcx> {
             flux_config::SmtSolver::CVC5 => liquid_fixpoint::SmtSolver::CVC5,
         };
 
-        let ans = fcx.check(cache, def_id, cstr, kind, self.opts.scrape_quals, backend)?;
-        if ans.errors.is_empty() {
-            return Ok(ans);
-        }
-
-        for lemma_id in self.genv.collect_specs().lemma_ids() {
-            let augmented_ans = Self::try_solve_with_lemma(
-                self.genv,
-                cache,
-                def_id,
-                kvars.clone(),
-                refine_tree.clone(),
-                lemma_id.to_def_id(),
-            )?;
-            if let Some(ans) = augmented_ans {
-                return Ok(ans);
-            }
-        }
-        Ok(ans)
+        fcx.check(cache, def_id, cstr, kind, self.opts.scrape_quals, backend)
     }
 
     pub fn split(self) -> (RefineTree, KVarGen) {
