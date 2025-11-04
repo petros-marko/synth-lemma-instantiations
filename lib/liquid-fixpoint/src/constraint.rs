@@ -54,6 +54,37 @@ impl<T: Types> Constraint<T> {
     }
 }
 
+
+#[derive_where(Hash, Clone, Debug)]
+pub enum Lemma<T: Types> {
+    ForAll(T::Var, Sort<T>, Box<Lemma<T>>),
+    Pred(Pred<T>)
+}
+
+impl<T: Types> Lemma<T> {
+    fn vars_help(&self, acc: &mut Vec<(T::Var, Sort<T>)>) {
+        match self {
+            Lemma::ForAll(var, sort, inner) => {
+                acc.push((var.clone(), sort.clone()));
+                inner.vars_help(acc);
+            }
+            Lemma::Pred(_) => {}
+        }
+    }
+    pub(crate) fn vars(&self) -> Vec<(T::Var, Sort<T>)> {
+        let mut v = vec![];
+        self.vars_help(&mut v);
+        v
+    }
+
+    pub (crate) fn body(&self) -> Pred<T> {
+        match self {
+            Lemma::ForAll(_,_ , inner) => inner.body(),
+            Lemma::Pred(pred) => pred.clone()
+        }
+    }
+}
+
 #[derive_where(Hash, Clone)]
 pub struct DataDecl<T: Types> {
     pub name: T::Sort,

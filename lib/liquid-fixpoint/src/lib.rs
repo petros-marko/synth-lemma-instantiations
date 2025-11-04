@@ -39,7 +39,7 @@ use std::{
 
 pub use constraint::{
     BinOp, BinRel, Bind, BoundVar, Constant, Constraint, DataCtor, DataDecl, DataField, Expr, Pred,
-    Qualifier, Sort, SortCtor, SortDecl,
+    Qualifier, Sort, SortCtor, SortDecl, Lemma
 };
 use derive_where::derive_where;
 #[cfg(feature = "nightly")]
@@ -121,6 +121,7 @@ macro_rules! declare_types {
             pub type Expr = $crate::Expr<FixpointTypes>;
             pub type Pred = $crate::Pred<FixpointTypes>;
             pub type Constraint = $crate::Constraint<FixpointTypes>;
+            pub type Lemma = $crate::Lemma<FixpointTypes>;
             pub type KVarDecl = $crate::KVarDecl<FixpointTypes>;
             pub type ConstDecl = $crate::ConstDecl<FixpointTypes>;
             pub type FunDef = $crate::FunDef<FixpointTypes>;
@@ -172,6 +173,7 @@ pub struct Task<T: Types> {
     pub constants: Vec<ConstDecl<T>>,
     pub data_decls: Vec<DataDecl<T>>,
     pub define_funs: Vec<FunDef<T>>,
+    pub lemmas: Vec<Lemma<T>>,
     pub kvars: Vec<KVarDecl<T>>,
     pub constraint: Constraint<T>,
     pub qualifiers: Vec<Qualifier<T>>,
@@ -312,6 +314,7 @@ impl<T: Types> Task<T> {
             self.kvars.clone(),
             self.qualifiers.clone(),
             self.constants.clone(),
+            self.lemmas.clone(),
             self.constraint.clone(),
         );
         Ok(FixpointResult {

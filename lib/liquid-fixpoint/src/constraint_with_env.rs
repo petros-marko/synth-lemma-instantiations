@@ -18,10 +18,11 @@ pub struct ConstraintWithEnv<T: Types> {
     kvar_decls: Vec<KVarDecl<T>>,
     qualifiers: Vec<Qualifier<T>>,
     constants: Vec<ConstDecl<T>>,
+    lemmas: Vec<Lemma<T>>,
     constraint: Constraint<T>,
 }
 #[cfg(feature = "rust-fixpoint")]
-use crate::Assignments;
+use crate::{Assignments, Lemma};
 use crate::{
     ConstDecl, DataDecl, KVarDecl, Types,
     constraint::{Constraint, Qualifier},
@@ -35,9 +36,10 @@ impl<T: Types> ConstraintWithEnv<T> {
         kvar_decls: Vec<KVarDecl<T>>,
         qualifiers: Vec<Qualifier<T>>,
         constants: Vec<ConstDecl<T>>,
+        lemmas: Vec<Lemma<T>>,
         constraint: Constraint<T>,
     ) -> Self {
-        Self { datatype_decls, kvar_decls, qualifiers, constants, constraint }
+        Self { datatype_decls, kvar_decls, qualifiers, constants, lemmas, constraint }
     }
 }
 
@@ -48,10 +50,11 @@ impl<T: Types> ConstraintWithEnv<T> {
         kvar_decls: Vec<KVarDecl<T>>,
         qualifiers: Vec<Qualifier<T>>,
         constants: Vec<ConstDecl<T>>,
+        lemmas: Vec<Lemma<T>>,
         constraint: Constraint<T>,
     ) -> Self {
         let datatype_decls = Self::topo_sort_data_declarations(datatype_decls);
-        Self { datatype_decls, kvar_decls, qualifiers, constants, constraint }
+        Self { datatype_decls, kvar_decls, qualifiers, constants, lemmas, constraint }
     }
 
     pub fn compute_initial_assignments(&self) -> Assignments<'_, T> {

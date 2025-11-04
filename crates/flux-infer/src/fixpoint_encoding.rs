@@ -22,8 +22,7 @@ use flux_middle::{
     queries::QueryResult,
     query_bug,
     rty::{
-        self, ESpan, EarlyReftParam, GenericArgsExt, InternalFuncKind, Lambda, List, SpecFuncKind,
-        VariantIdx, fold::TypeFoldable as _,
+        self, ESpan, EarlyReftParam, GenericArgsExt, InternalFuncKind, Lambda, List, SpecFuncKind, VariantIdx, fold::TypeFoldable as _
     },
 };
 use itertools::Itertools;
@@ -485,6 +484,46 @@ where
         }
     }
 
+    fn encode_lemma(&mut self, lemma_id: DefId) -> QueryResult<fixpoint::Lemma> {
+        let generics = self.genv.refinement_generics_of(lemma_id)?.skip_binder();
+        let fn_sig = self.genv.fn_sig(lemma_id)?.skip_binder().skip_binder();
+        let requires = Vec::from(fn_sig.requires());
+        let requires_conj = rty::Expr::and_from_iter(requires);
+        let output = fn_sig.output().skip_binder();
+        let ensures = output.ensures.iter().filter_map(|ensure| {
+            match ensure {
+                rty::Ensures::Type(..) => None,
+                rty::Ensures::Pred(expr) => Some(expr.clone()),
+            }
+        });
+        let ensures_conj = rty::Expr::and_from_iter(ensures);
+        let vars = generics.own_params.iter().enumerate().map(|(idx, param)| {
+            let var = self.var_to_fixpoint(&rty::Var::EarlyParam(rty::EarlyReftParam {
+                name: param.name,
+                index: idx as u32
+            }));
+            let sort = self.sort_to_fixpoint(&param.sort);
+            (var, sort)
+        }).collect_vec();
+        let body = self.assumption_to_fixpoint(&rty::Expr::binary_op(rty::BinOp::Imp, requires_conj, ensures_conj))?.1;
+        Ok(vars.into_iter().fold(fixpoint::Lemma::Pred(body), |acc, (var, sort)| fixpoint::Lemma::ForAll(var, sort, Box::new(acc))))
+    }
+
+    #[cfg(feature = "rust-fixpoint")]
+    fn encode_lemmas(&mut self) -> QueryResult<Vec<fixpoint::Lemma>> {
+        let mut res = vec![];
+        for lemma_id in self.genv.collect_specs().lemma_ids() {
+            let def_id = lemma_id.to_def_id();
+            res.push(self.encode_lemma(def_id)?);
+        }
+        Ok(res)
+    }
+
+    #[cfg(not(feature = "rust-fixpoint"))]
+    fn encode_lemmas(&mut self) -> QueryResult<Vec<fixpoint::Lemma>> {
+        Ok(vec![])
+    }
+
     pub fn check(
         mut self,
         cache: &mut FixQueryCache,
@@ -550,6 +589,7 @@ where
             scrape_quals,
             solver,
             data_decls: self.scx.encode_data_decls(self.genv)?,
+            lemmas: self.encode_lemmas()?,
         };
         if config::dump_constraint() {
             dbg::dump_item_info(self.genv.tcx(), def_id.resolved_id(), "smt2", &task).unwrap();
