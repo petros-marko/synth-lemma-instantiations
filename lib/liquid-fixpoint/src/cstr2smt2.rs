@@ -598,13 +598,17 @@ pub(crate) fn new_binding<T: Types>(name: &T::Var, sort: &Sort<T>, env: &Env<T>)
                     )
                 }
                 SortCtor::Data(data_ctor) => {
-                    Binding::Variable(
-                        ast::Datatype::new_const(
-                            name.display().to_string(),
-                            env.datatype_lookup(data_ctor).unwrap(),
+                    if data_ctor.display().to_string().as_str() == "int" {
+                        Binding::Variable(ast::Int::new_const(name.display().to_string()).into())
+                    } else {
+                        Binding::Variable(
+                            ast::Datatype::new_const(
+                                name.display().to_string(),
+                                env.datatype_lookup(data_ctor).unwrap(),
+                            )
+                            .into(),
                         )
-                        .into(),
-                    )
+                    }
                 }
             }
         }
@@ -628,7 +632,13 @@ fn z3_sort<T: Types>(s: &Sort<T>, env: &Env<T>) -> z3::Sort {
             match sort_ctor {
                 SortCtor::Set => z3::Sort::set(&z3_sort(&args[0], env)),
                 SortCtor::Map => z3::Sort::array(&z3_sort(&args[0], env), &z3_sort(&args[1], env)),
-                SortCtor::Data(sort) => env.datatype_lookup(sort).unwrap().clone(),
+                SortCtor::Data(sort) => {
+                    if sort.display().to_string().as_str() == "int" {
+                        z3::Sort::int()
+                    } else {
+                        env.datatype_lookup(sort).unwrap().clone()
+                    }
+                }
             }
         }
         _ => panic!("unhandled sort encountered {:#?}", s),

@@ -38,8 +38,8 @@ use std::{
 };
 
 pub use constraint::{
-    BinOp, BinRel, Bind, BoundVar, Constant, Constraint, DataCtor, DataDecl, DataField, Expr, Pred,
-    Qualifier, Sort, SortCtor, SortDecl, Lemma
+    BinOp, BinRel, Bind, BoundVar, Constant, Constraint, DataCtor, DataDecl, DataField, Expr,
+    Lemma, Pred, Qualifier, Sort, SortCtor, SortDecl,
 };
 use derive_where::derive_where;
 #[cfg(feature = "nightly")]

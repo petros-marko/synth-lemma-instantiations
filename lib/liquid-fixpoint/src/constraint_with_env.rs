@@ -22,10 +22,10 @@ pub struct ConstraintWithEnv<T: Types> {
     constraint: Constraint<T>,
 }
 #[cfg(feature = "rust-fixpoint")]
-use crate::{Assignments};
+use crate::Assignments;
 use crate::{
-    ConstDecl, DataDecl, KVarDecl, Types,
-    constraint::{Constraint, Qualifier}, Lemma
+    ConstDecl, DataDecl, KVarDecl, Lemma, Types,
+    constraint::{Constraint, Qualifier},
 };
 
 #[cfg(not(feature = "rust-fixpoint"))]

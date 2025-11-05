@@ -54,11 +54,10 @@ impl<T: Types> Constraint<T> {
     }
 }
 
-
 #[derive_where(Hash, Clone, Debug)]
 pub enum Lemma<T: Types> {
     ForAll(T::Var, Sort<T>, Box<Lemma<T>>),
-    Pred(Pred<T>)
+    Pred(Pred<T>),
 }
 
 impl<T: Types> Lemma<T> {
@@ -77,10 +76,10 @@ impl<T: Types> Lemma<T> {
         v
     }
 
-    pub (crate) fn body(&self) -> Pred<T> {
+    pub(crate) fn body(&self) -> Pred<T> {
         match self {
-            Lemma::ForAll(_,_ , inner) => inner.body(),
-            Lemma::Pred(pred) => pred.clone()
+            Lemma::ForAll(_, _, inner) => inner.body(),
+            Lemma::Pred(pred) => pred.clone(),
         }
     }
 }

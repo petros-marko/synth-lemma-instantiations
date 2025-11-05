@@ -22,7 +22,8 @@ use flux_middle::{
     queries::QueryResult,
     query_bug,
     rty::{
-        self, ESpan, EarlyReftParam, GenericArgsExt, InternalFuncKind, Lambda, List, SpecFuncKind, VariantIdx, fold::TypeFoldable as _
+        self, ESpan, EarlyReftParam, GenericArgsExt, InternalFuncKind, Lambda, List, SpecFuncKind,
+        VariantIdx, fold::TypeFoldable as _,
     },
 };
 use itertools::Itertools;
@@ -497,16 +498,31 @@ where
             }
         });
         let ensures_conj = rty::Expr::and_from_iter(ensures);
-        let vars = generics.own_params.iter().enumerate().map(|(idx, param)| {
-            let var = self.var_to_fixpoint(&rty::Var::EarlyParam(rty::EarlyReftParam {
-                name: param.name,
-                index: idx as u32
-            }));
-            let sort = self.sort_to_fixpoint(&param.sort);
-            (var, sort)
-        }).collect_vec();
-        let body = self.assumption_to_fixpoint(&rty::Expr::binary_op(rty::BinOp::Imp, requires_conj, ensures_conj))?.1;
-        Ok(vars.into_iter().fold(fixpoint::Lemma::Pred(body), |acc, (var, sort)| fixpoint::Lemma::ForAll(var, sort, Box::new(acc))))
+        let vars = generics
+            .own_params
+            .iter()
+            .enumerate()
+            .map(|(idx, param)| {
+                let var = self.var_to_fixpoint(&rty::Var::EarlyParam(rty::EarlyReftParam {
+                    name: param.name,
+                    index: idx as u32,
+                }));
+                let sort = self.sort_to_fixpoint(&param.sort);
+                (var, sort)
+            })
+            .collect_vec();
+        let body = self
+            .assumption_to_fixpoint(&rty::Expr::binary_op(
+                rty::BinOp::Imp,
+                requires_conj,
+                ensures_conj,
+            ))?
+            .1;
+        Ok(vars
+            .into_iter()
+            .fold(fixpoint::Lemma::Pred(body), |acc, (var, sort)| {
+                fixpoint::Lemma::ForAll(var, sort, Box::new(acc))
+            }))
     }
 
     #[cfg(feature = "rust-fixpoint")]
