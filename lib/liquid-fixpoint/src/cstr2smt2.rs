@@ -1,4 +1,3 @@
-use core::panic;
 use std::{collections::HashMap, iter, str::FromStr, vec};
 
 use itertools::Itertools as _;
@@ -8,7 +7,8 @@ use z3::{
 };
 
 use crate::{
-    DataDecl, Error, FixpointFmt, FixpointStatus, Identifier, SortCtor, Stats, ThyFunc, Types,
+    DataDecl, Error, FixpointFmt, FixpointStatus, Identifier, Lemma, SortCtor, Stats, ThyFunc,
+    Types,
     constraint::{BinOp, BinRel, Constant, Constraint, Expr, Pred, Sort},
 };
 
@@ -643,6 +643,26 @@ fn z3_sort<T: Types>(s: &Sort<T>, env: &Env<T>) -> z3::Sort {
         }
         _ => panic!("unhandled sort encountered {:#?}", s),
     }
+}
+
+pub(crate) fn add_lemma<T: Types>(lemma: &Lemma<T>, solver: &Solver, env: &mut Env<T>) {
+    let mut z3_vars: Vec<&dyn Ast> = Vec::new();
+    // add lemma's var to vars
+    for v in lemma.vars() {
+        env.insert(v.0.clone(), new_binding(&v.0, &v.1, env));
+    }
+    let pred = pred_to_z3(&lemma.body(), env);
+    for v in lemma.vars() {
+        // create array of z3 variables to feed to forall
+        let Binding::Variable(z3_var_val) = env.lookup(&v.0).unwrap() else { panic!("foo") };
+        z3_vars.push(z3_var_val);
+    }
+    let forall: ast::Bool = ast::forall_const(&z3_vars, &[], &pred);
+    solver.assert(forall);
+    // remove lemma's vars
+    lemma.vars().iter().for_each(|v| {
+        env.pop(&v.0);
+    });
 }
 
 pub(crate) fn is_constraint_satisfiable<T: Types>(

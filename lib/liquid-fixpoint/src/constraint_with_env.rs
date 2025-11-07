@@ -3,7 +3,7 @@ use derive_where::derive_where;
 use {
     crate::{
         FixpointStatus, Sort, SortCtor,
-        cstr2smt2::{Env, is_constraint_satisfiable, new_binding, new_datatype},
+        cstr2smt2::{Env, add_lemma, is_constraint_satisfiable, new_binding, new_datatype},
         graph,
     },
     itertools::Itertools,
@@ -154,6 +154,10 @@ impl<T: Types> ConstraintWithEnv<T> {
         self.datatype_decls.iter().for_each(|data_decl| {
             let datatype_sort = new_datatype(&data_decl.name, data_decl, &mut vars);
             vars.insert_data_decl(data_decl.name.clone(), datatype_sort);
+        });
+        // iterate through the lemmas and add to solver
+        self.lemmas.iter().for_each(|lemma| {
+            add_lemma(&lemma, &solver, &mut vars);
         });
         let kvar_assignment = self.solve_for_kvars(&solver, &mut vars);
         self.constraint = self.constraint.sub_all_kvars(&kvar_assignment);
