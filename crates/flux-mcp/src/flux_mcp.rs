@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     diagnostics,
-    flux_runner::{FluxRunner, VerificationReport, VerifyRepositoryArgs},
+    flux_runner::{FluxRunner, VerificationReport, VerifyRepositoryArgs, VerifyPackageArgs},
 };
 
 pub struct FluxMcp {
@@ -31,6 +31,36 @@ impl FluxMcp {
     ) -> Result<CallToolResult, McpErrorData> {
         let runner = self.runner.lock().await;
         let result = runner.verify_repository(&args.repo_path).await;
+        match result {
+            Ok(report) => {
+                let result_text = if report.success {
+                    "Verification Succeeded".to_string()
+                } else {
+                    "Verification Failed".to_string()
+                };
+                let mut diagnostic_text: Vec<_> = report
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| Content::text(serde_json::to_string(diagnostic).unwrap()))
+                    .collect();
+                diagnostic_text.push(Content::text(result_text));
+                Ok(CallToolResult::success(diagnostic_text))
+            }
+            Err(err) => {
+                Err(McpErrorData::invalid_request(format!("Verification failed {err}"), None))
+            }
+        }
+    }
+
+    #[tool(description = "Run Flux verification on a set of packages in a repository and return results")]
+    async fn verify_packages(
+        &self,
+        Parameters(args): Parameters<VerifyPackageArgs>,
+    ) -> Result<CallToolResult, McpErrorData> {
+        let runner = self.runner.lock().await;
+        let slice: Vec<&str> = args.packages.iter().map(|s| s.as_str()).collect();
+        let package_arg: &[&str] = slice.as_slice();
+        let result = runner.verify_package(&args.repo_path, Some(package_arg)).await;
         match result {
             Ok(report) => {
                 let result_text = if report.success {

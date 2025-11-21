@@ -15,6 +15,12 @@ pub struct VerifyRepositoryArgs {
     pub repo_path: String,
 }
 
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+pub struct VerifyPackageArgs {
+    pub repo_path: String,
+    pub packages: Vec<String>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VerificationReport {
     pub success: bool,
@@ -93,4 +99,31 @@ impl FluxRunner {
 
         Ok(VerificationReport { success: status.success(), diagnostics })
     }
+
+    pub async fn verify_package(&self, repo_path: &str, packages: Option<&[&str]>) -> Result<VerificationReport, String> {
+        let mut cmd = Self::flux_command(repo_path, packages, None);
+        tracing::info!("About to execute command {:?}", cmd);
+        let mut child = cmd
+            .spawn()
+            .map_err(|_| "Failed to run Flux process".to_string())?;
+        let stdout = child
+            .stdout
+            .take()
+            .map(Ok)
+            .unwrap_or(Err("Failed to capture stdout from Flux process".to_string()))?;
+        let mut output = String::new();
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            let line = line.map_err(|err| format!("Failed to read output: {err}"))?;
+            output.push_str(&line);
+            output.push('\n');
+        }
+        let status = child
+            .wait()
+            .map_err(|err| format!("Process wait failed: {err}"))?;
+        let diagnostics = Self::parse_flux_output(&output);
+
+        Ok(VerificationReport { success: status.success(), diagnostics })
+    }
+    
 }
