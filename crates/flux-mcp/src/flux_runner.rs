@@ -27,6 +27,21 @@ pub struct VerificationReport {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+pub struct GetLemmaArgs {
+    pub repo_path: String
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Lemma {
+    pub name: String,
+    pub file_name: String,
+    pub start_line: i64,
+    pub start_col: i64,
+    pub end_line: i64,
+    pub end_col: i64,
+}
+
 impl FluxRunner {
     pub fn new() -> Self {
         Self {}
@@ -69,6 +84,31 @@ impl FluxRunner {
                     json_val.get("target").and_then(parse_target);
                 let package_id = json_val.get("package_id").map(|id| id.to_string());
                 res.push(Diagnostic { message, package_id, target })
+            }
+        }
+        res
+    }
+
+    fn parse_lemma(message: &serde_json::Value) -> Option<Lemma> {
+        tracing::info!("{message}");
+        let name = message.get("lemma_name")?.as_str()?.to_string();
+        let file_name = message.get("file_name")?.as_str()?.to_string();
+        let start_line = message.get("start_line")?.as_i64()?;
+        let end_line = message.get("end_line")?.as_i64()?;
+        let start_col = message.get("start_col")?.as_i64()?;
+        let end_col = message.get("end_col")?.as_i64()?;
+        Some(Lemma { name, file_name, start_line, start_col, end_line, end_col })
+    }
+
+    fn parse_flux_lemmas(output: &str) -> Vec<Lemma> {
+        let mut res = Vec::new();
+        tracing::info!("ABOUT TO PARSE LEMMAS");
+        for line in output.lines() {
+            let Ok(json_val) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+            let Some(reason) = json_val.get("reason") else { continue };
+            if reason.as_str() == Some("compiler-message") {
+                let Some(lemma) = json_val.get("message").and_then(Self::parse_lemma) else { continue };
+                res.push(lemma);
             }
         }
         res
@@ -124,6 +164,32 @@ impl FluxRunner {
         let diagnostics = Self::parse_flux_output(&output);
 
         Ok(VerificationReport { success: status.success(), diagnostics })
+    }
+
+    pub async fn get_lemmas(&self, repo_path: &str) -> Result<Vec<Lemma>, String> {
+        let flux_flags = ["-Fdump-lemmas"];
+        let mut cmd = Self::flux_command(repo_path, None, Some(&flux_flags));
+        tracing::info!("About to execute command {:?}", cmd);
+        let mut child = cmd
+            .spawn()
+            .map_err(|_| "Failed to run Flux process".to_string())?;
+        let stdout = child
+            .stdout
+            .take()
+            .map(Ok)
+            .unwrap_or(Err("Failed to capture stdout from Flux process".to_string()))?;
+        let mut output = String::new();
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            let line = line.map_err(|err| format!("Failed to read ouptut: {err}"))?;
+            output.push_str(&line);
+            output.push('\n');
+        }
+        let status = child
+            .wait()
+            .map_err(|err| format!("Process wait failed: {err}"))?;
+        let lemmas = Self::parse_flux_lemmas(&output);
+        Ok(lemmas)
     }
     
 }

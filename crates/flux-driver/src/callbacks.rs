@@ -96,6 +96,37 @@ fn check_crate(genv: GlobalEnv) -> Result<(), ErrorGuaranteed> {
             ck.encode_flux_items_in_lean().unwrap_or(());
         }
 
+        if config::dump_lemmas() {
+            for lemma_id in genv.collect_specs().lemma_ids() {
+                let def_id = lemma_id.to_def_id();
+                let name = genv.tcx().def_path_str(def_id);
+                
+                let tcx = genv.tcx();
+                let span = tcx.def_span(def_id);
+                let source_map = tcx.sess.source_map();
+                let source_file = source_map.lookup_source_file(span.lo());
+                let FileName::Real(path) = source_file.name.clone() else { panic!("Expected source file name to be a real path") };
+                
+                let lo_pos = source_map.lookup_char_pos(span.lo());
+                let start_line = lo_pos.line;
+                let start_col = lo_pos.col_display;
+                
+                let hi_pos = source_map.lookup_char_pos(span.hi());
+                let end_line = hi_pos.line;
+                let end_col = hi_pos.col_display;
+
+                eprintln!("{}", serde_json::json!({
+                    "lemma_name": name,
+                    "file_name": format!("{}", path.local_path().unwrap().display()),
+                    "start_line": start_line,
+                    "start_col": start_col,
+                    "end_line": end_line,
+                    "end_col": end_col
+                }));
+            }
+            return Ok(())
+        }
+
         let crate_items = genv.tcx().hir_crate_items(());
 
         let dups = crate_items.definitions().duplicates().collect_vec();

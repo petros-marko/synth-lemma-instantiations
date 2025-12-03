@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     diagnostics,
-    flux_runner::{FluxRunner, VerificationReport, VerifyRepositoryArgs, VerifyPackageArgs},
+    flux_runner::{FluxRunner, VerificationReport, VerifyRepositoryArgs, VerifyPackageArgs, GetLemmaArgs},
 };
 
 pub struct FluxMcp {
@@ -102,6 +102,27 @@ impl FluxMcp {
             }
             Err(err) => {
                 Err(McpErrorData::invalid_request(format!("Verification failed {err}"), None))
+            }
+        }
+    }
+
+    #[tool(description = "Get a list of available lemmas that can be used to help the solver with verification")]
+    async fn get_lemmas(
+        &self,
+        Parameters(args): Parameters<GetLemmaArgs>,
+    ) -> Result<CallToolResult, McpErrorData> {
+        let runner = self.runner.lock().await;
+        let result = runner.get_lemmas(&args.repo_path).await;
+        match result {
+            Ok(lemmas) => {
+                let lemmas_text: Vec<_> = lemmas
+                    .iter()
+                    .map(|lemma| Content::text(serde_json::to_string(lemma).unwrap()))
+                    .collect();
+                Ok(CallToolResult::success(lemmas_text))
+            }
+            Err(err) => {
+                Err(McpErrorData::invalid_request(format!("Failed to fetch lemmas {err}"), None))
             }
         }
     }

@@ -62,6 +62,10 @@ pub fn emit_lean_defs() -> bool {
     FLAGS.emit_lean_defs
 }
 
+pub fn dump_lemmas() -> bool {
+    FLAGS.dump_lemmas
+}
+
 pub fn cache_path() -> Option<&'static Path> {
     FLAGS.cache.as_deref()
 }
